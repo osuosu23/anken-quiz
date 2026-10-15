@@ -1,0 +1,91 @@
+name: Daily Video Data Collection
+
+on:
+  schedule:
+    # 毎日日本時間 0:00 (UTC 15:00) に自動実行
+    - cron: '0 15 * * *'
+  # GitHub Web UIからいつでも手動実行可能
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not push to branch)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  fetch-and-update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Run video collection script
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          node scripts/fetch-videos.mjs
+
+      - name: Build site with Vite (Relative Paths)
+        run: npm run build
+
+      - name: Deploy data to 'data' branch (Overwrite history)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 1. 生成したJSONデータを一時退避
+          mkdir -p /tmp/quiz-data
+          cp -r data/* /tmp/quiz-data/
+
+          # 2. 過去履歴を持たない「orphan（孤立）ブランチ」を作成し、作業ツリーを全初期化
+          git checkout --orphan data
+          git rm -rf .
+          git clean -fdx
+
+          # 3. 退避したデータのみを配置
+          mkdir -p data
+          cp -r /tmp/quiz-data/* data/
+
+          # 4. 単一の最新コミットとして記録し、リモートのdataブランチを完全上書き
+          git add data/
+          git commit -m "Auto-update quiz data [$(date -u +'%Y-%m-%d %H:%M:%S UTC')]"
+          git push --force origin data
+          echo "✅ Successfully updated data branch with latest videos!"
+
+      - name: Setup Pages
+        if: ${{ !inputs.dry_run }}
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: ${{ !inputs.dry_run }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        if: ${{ !inputs.dry_run }}
+        id: deployment
+        uses: actions/deploy-pages@v4
+
