@@ -3,7 +3,7 @@
  * サムネイル案件クイズ - クライアントサイドメインロジック
  */
 
-// カテゴリ定義（全9ジャンル）
+// カテゴリ定義
 const CATEGORIES = [
   { key: 'all', name: '🌟 総合（全ジャンル）' },
   { key: 'gadget', name: '📱 ガジェット・家電' },
@@ -12,7 +12,6 @@ const CATEGORIES = [
   { key: 'entertainment', name: '🎉 エンタメ・バラエティ' },
   { key: 'vlog', name: '☕️ 日常・Vlog' },
   { key: 'vehicles', name: '🚗 車・乗り物' },
-  { key: 'sports', name: '⚽️ スポーツ・筋トレ' },
   { key: 'business', name: '💼 ビジネス・教養' }
 ];
 

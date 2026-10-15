@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '../data');
 
-// 対象カテゴリ定義（全9ジャンル）
+// 対象カテゴリ定義（全8ジャンル: スポーツは除外）
 const CATEGORIES = [
   { id: null, key: 'all', name: '総合（全ジャンル）' },
   { id: '28', key: 'gadget', name: 'ガジェット・家電' },
@@ -26,9 +26,50 @@ const CATEGORIES = [
   { id: '24', key: 'entertainment', name: 'エンタメ・バラエティ' },
   { id: '22', key: 'vlog', name: '日常・Vlog' },
   { id: '2', key: 'vehicles', name: '車・乗り物' },
-  { id: '17', key: 'sports', name: 'スポーツ・筋トレ' },
   { id: '27', key: 'business', name: 'ビジネス・教養' }
 ];
+
+// 除外対象のYouTube動画カテゴリID（カテゴリー分析による除外）
+// 25: News & Politics (ニュースと政治)
+// 17: Sports (スポーツ)
+const BLOCKED_CATEGORY_IDS = new Set(['25', '17']);
+
+// 判明している除外対象チャンネルID（ブロックリスト）
+const BLOCKED_CHANNEL_IDS = new Set([
+  'UCGCZAYq5Xxojl_tSXcVJhiQ', // ANNnewsCH
+  'UC1ipzc08F-FjrZ5jIaZVPIw', // FNNプライムオンライン
+  'UCWt0yfrBaUk148rxaOp4b4w', // 日テレNEWS
+  'UCeCmAYh1ylwIsgGrmqaklzg', // TBS NEWS DIG
+  'UCkKVQ_GNjd8FbAuT6xDcWgg', // テレ東BIZ
+  'UCJ-l-sMQFHogSy8KXRyMIRA', // SPOTVNOW
+  'UCoFLB_Gw_AoxUuuzKjXrc_Q'  // DAZN Japan
+]);
+
+// チャンネルタイトルによる除外正規表現（ニュース系報道、スポーツ中継・速報系公式チャンネル）
+const BLOCKED_CHANNEL_TITLE_REGEX = /^(?:ANNnewsCH|FNN.*|日テレNEWS.*|TBS NEWS DIG.*|テレ東BIZ.*|SPOTVNOW.*|DAZN.*|.*NEWS DIG|カンテレ.*|読売テレビ.*|サンテレビ|.*パ・リーグTV.*|.*TBS スポーツ|スポーツナビ.*|日刊スポーツ|NHK.*)$/i;
+
+// ニュース・スポーツなど除外判定（カテゴリー分析、チャンネルID、チャンネル名、*テレビ*）
+function isBlockedVideo(item) {
+  const categoryId = item.snippet?.categoryId;
+  if (categoryId && BLOCKED_CATEGORY_IDS.has(String(categoryId))) {
+    return true;
+  }
+
+  const channelId = item.snippet?.channelId;
+  if (channelId && BLOCKED_CHANNEL_IDS.has(channelId)) {
+    return true;
+  }
+
+  const channelTitle = item.snippet?.channelTitle || '';
+  if (channelTitle.includes('テレビ')) {
+    return true;
+  }
+  if (BLOCKED_CHANNEL_TITLE_REGEX.test(channelTitle)) {
+    return true;
+  }
+
+  return false;
+}
 
 // タイトルネタバレNGワード（タイトルにこれらが入っている動画はクイズにならないため除外）
 const SPOILER_REGEX = /(?:PR|案件|提供|プロモーション|タイアップ|#PR|#pr|AD|sponsor)/i;
@@ -143,7 +184,7 @@ function isValidQuizVideo(snippet) {
   return true;
 }
 
-// 1カテゴリの収集処理（3倍取得 & 公式APIバッジ完全検証）
+// 1カテゴリの収集処理（3倍取得 & 公式APIバッジ完全検証 & チャンネル重複排除）
 async function processCategory(apiKey, category, dateRange) {
   console.log(`\n========================================`);
   console.log(`🔍 [${category.name}] 3倍収集開始... (ID: ${category.id || 'なし'})`);
@@ -185,35 +226,75 @@ async function processCategory(apiKey, category, dateRange) {
   // 全候補を公式APIで詳細取得し、公式プロモーションバッジ有無のみで判定（推測は一切行わない）
   const verifiedVideoDetails = await fetchVideosList(apiKey, allCandidateIds);
 
-  const sponsoredMap = new Map();
-  const normalMap = new Map();
+  // 同一ジャンル内でのチャンネル重複排除用Set（同じチャンネルの2番目以降は載せない）
+  const seenCategoryChannels = new Set();
+  const finalSponsored = [];
+  const finalNormal = [];
 
+  // 1. 案件動画（sponsored）を最優先で登録
   for (const vItem of verifiedVideoDetails) {
     if (!vItem || !vItem.id || !vItem.snippet) continue;
 
     // 【公式判定基準】YouTubeシステムが保持する有料プロモーション開示フラグ
     const hasOfficialBadge = vItem.paidProductPlacementDetails?.hasPaidProductPlacement === true;
+    if (!hasOfficialBadge) continue;
 
-    const videoData = {
+    // ニュース・スポーツ等除外判定（カテゴリ25/17、ブロックID、テレビ等）
+    if (isBlockedVideo(vItem)) {
+      continue;
+    }
+
+    const cid = vItem.snippet.channelId;
+    const cTitle = vItem.snippet.channelTitle || '';
+
+    // 同一ジャンル内重複チャンネルのスキップ（2番目以降は除外）
+    const channelKey = cid || cTitle;
+    if (seenCategoryChannels.has(channelKey)) {
+      continue;
+    }
+
+    seenCategoryChannels.add(channelKey);
+    finalSponsored.push({
       id: vItem.id,
       title: vItem.snippet.title,
-      channelTitle: vItem.snippet.channelTitle,
+      channelId: cid,
+      channelTitle: cTitle,
       thumbnailUrl: vItem.snippet.thumbnails?.high?.url || vItem.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${vItem.id}/hqdefault.jpg`
-    };
-
-    if (hasOfficialBadge) {
-      // 公式プロモーションフラグが立っているもの「のみ」案件に分類
-      sponsoredMap.set(vItem.id, videoData);
-    } else {
-      // 公式プロモーションフラグがないものは通常動画に分類
-      normalMap.set(vItem.id, videoData);
-    }
+    });
   }
 
-  const finalSponsored = Array.from(sponsoredMap.values());
-  const finalNormal = Array.from(normalMap.values());
+  // 2. 通常動画（normal）を登録（案件で採用されたチャンネルも重複除外される）
+  for (const vItem of verifiedVideoDetails) {
+    if (!vItem || !vItem.id || !vItem.snippet) continue;
 
-  console.log(`  ✨ [${category.name}] 公式検証完了: 案件 ${finalSponsored.length} 本 / 通常 ${finalNormal.length} 本`);
+    const hasOfficialBadge = vItem.paidProductPlacementDetails?.hasPaidProductPlacement === true;
+    if (hasOfficialBadge) continue; // 案件は登録済み
+
+    // ニュース・スポーツ等除外判定（カテゴリ25/17、ブロックID、テレビ等）
+    if (isBlockedVideo(vItem)) {
+      continue;
+    }
+
+    const cid = vItem.snippet.channelId;
+    const cTitle = vItem.snippet.channelTitle || '';
+
+    // 同一ジャンル内重複チャンネルのスキップ（2番目以降は除外）
+    const channelKey = cid || cTitle;
+    if (seenCategoryChannels.has(channelKey)) {
+      continue;
+    }
+
+    seenCategoryChannels.add(channelKey);
+    finalNormal.push({
+      id: vItem.id,
+      title: vItem.snippet.title,
+      channelId: cid,
+      channelTitle: cTitle,
+      thumbnailUrl: vItem.snippet.thumbnails?.high?.url || vItem.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${vItem.id}/hqdefault.jpg`
+    });
+  }
+
+  console.log(`  ✨ [${category.name}] フィルタ・重複排除完了: 案件 ${finalSponsored.length} 本 / 通常 ${finalNormal.length} 本`);
 
   return {
     category: category.key,
