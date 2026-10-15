@@ -113,10 +113,11 @@ function switchScreen(screenName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// カテゴリデータの読み込み（完全相対パス対応・独自ドメイン / 各種ホスティング対応）
+// カテゴリデータの読み込み（完全相対パス対応・独自ドメイン / キャッシュバスター付き）
 async function loadCategoryData(categoryKey) {
-  const spUrl = `./data/${categoryKey}_sponsored.json`;
-  const nmUrl = `./data/${categoryKey}_normal.json`;
+  const cacheBust = `?t=${Date.now()}`;
+  const spUrl = `./data/${categoryKey}_sponsored.json${cacheBust}`;
+  const nmUrl = `./data/${categoryKey}_normal.json${cacheBust}`;
 
   try {
     const [spRes, nmRes] = await Promise.all([

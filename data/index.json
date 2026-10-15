@@ -1,85 +1,85 @@
 {
-  "updatedAt": "2026-10-15T13:12:50.088Z",
+  "updatedAt": "2026-10-15T13:50:10.417Z",
   "categories": [
     {
       "key": "all",
       "name": "総合（全ジャンル）",
       "counts": {
-        "sponsored": 14,
-        "normal": 14,
-        "total": 28
+        "sponsored": 47,
+        "normal": 49,
+        "total": 96
       }
     },
     {
       "key": "gadget",
       "name": "ガジェット・家電",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 40,
+        "normal": 41,
+        "total": 81
       }
     },
     {
       "key": "beauty",
       "name": "コスメ・美容・暮らし",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 44,
+        "normal": 50,
+        "total": 94
       }
     },
     {
       "key": "gaming",
       "name": "ゲーム",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 49,
+        "normal": 49,
+        "total": 98
       }
     },
     {
       "key": "entertainment",
       "name": "エンタメ・バラエティ",
       "counts": {
-        "sponsored": 8,
-        "normal": 6,
-        "total": 14
+        "sponsored": 48,
+        "normal": 49,
+        "total": 97
       }
     },
     {
       "key": "vlog",
       "name": "日常・Vlog",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 48,
+        "normal": 50,
+        "total": 98
       }
     },
     {
       "key": "vehicles",
       "name": "車・乗り物",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 44,
+        "normal": 47,
+        "total": 91
       }
     },
     {
       "key": "sports",
       "name": "スポーツ・筋トレ",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 48,
+        "normal": 50,
+        "total": 98
       }
     },
     {
       "key": "business",
       "name": "ビジネス・教養",
       "counts": {
-        "sponsored": 8,
-        "normal": 8,
-        "total": 16
+        "sponsored": 50,
+        "normal": 49,
+        "total": 99
       }
     }
   ]
