@@ -5,7 +5,7 @@
 
 // カテゴリ定義
 const CATEGORIES = [
-  { key: 'all', name: '総合（全ジャンル）' },
+  { key: 'all', name: 'すべてのジャンル' },
   { key: 'gadget', name: '科学と技術' },
   { key: 'beauty', name: 'ハウツーとスタイル' },
   { key: 'gaming', name: 'ゲーム' },
@@ -22,6 +22,7 @@ const screens = {
   result: document.getElementById('screen-result')
 };
 
+const categoryAllWrap = document.getElementById('category-all-wrap');
 const categoryChipsContainer = document.getElementById('category-chips');
 const loadingNotice = document.getElementById('loading-notice');
 const brandSubtitle = document.getElementById('brand-subtitle');
@@ -58,7 +59,7 @@ const reviewList = document.getElementById('review-list');
 
 // ゲーム状態管理
 let selectedCategory = CATEGORIES[0];
-let questions = []; // 全10問（案件5 + 通常5）
+let questions = []; // 全10問（毎問50%の確率で独立抽選）
 let currentIndex = 0;
 let userAnswers = []; // 各問の回答履歴
 let isCurrentAnswered = false;
@@ -163,28 +164,79 @@ function switchScreen(screenName) {
 
 const DATA_BASE_URL = 'https://raw.githubusercontent.com/osuosu23/anken-quiz-data/main/data';
 
-// カテゴリデータの読み込み
-async function loadCategoryData(categoryKey) {
-  const cacheBust = `?t=${Date.now()}`;
+// 単一カテゴリのJSONデータ取得ヘルパー
+async function fetchCategoryJson(categoryKey, cacheBust) {
   const spUrl = `${DATA_BASE_URL}/${categoryKey}_sponsored.json${cacheBust}`;
   const nmUrl = `${DATA_BASE_URL}/${categoryKey}_normal.json${cacheBust}`;
 
   try {
     const [spRes, nmRes] = await Promise.all([
-      fetch(spUrl),
-      fetch(nmUrl)
+      fetch(spUrl).catch(() => null),
+      fetch(nmUrl).catch(() => null)
     ]);
 
-    if (spRes.ok && nmRes.ok) {
-      const sponsored = await spRes.json();
-      const normal = await nmRes.json();
+    let sponsored = [];
+    let normal = [];
 
-      if (Array.isArray(sponsored) && Array.isArray(normal) && sponsored.length >= 5 && normal.length >= 5) {
+    if (spRes && spRes.ok) {
+      sponsored = await spRes.json().catch(() => []);
+    }
+    if (nmRes && nmRes.ok) {
+      normal = await nmRes.json().catch(() => []);
+    }
+
+    return {
+      sponsored: Array.isArray(sponsored) ? sponsored : [],
+      normal: Array.isArray(normal) ? normal : []
+    };
+  } catch (err) {
+    console.error(`[fetchCategoryJson] データ読み込み失敗 (${categoryKey}):`, err);
+    return { sponsored: [], normal: [] };
+  }
+}
+
+// カテゴリデータの読み込み
+async function loadCategoryData(categoryKey) {
+  const cacheBust = `?t=${Date.now()}`;
+
+  // 総合（all）の場合は、総合として取得したデータだけでなく、他の全ジャンルとして読み取ったデータも含めて出題プールを統合する
+  if (categoryKey === 'all') {
+    try {
+      const fetchPromises = CATEGORIES.map(cat => fetchCategoryJson(cat.key, cacheBust));
+      const results = await Promise.all(fetchPromises);
+
+      const sponsoredMap = new Map();
+      const normalMap = new Map();
+
+      for (const res of results) {
+        for (const item of res.sponsored) {
+          if (item && item.id && !sponsoredMap.has(item.id)) {
+            sponsoredMap.set(item.id, item);
+          }
+        }
+        for (const item of res.normal) {
+          if (item && item.id && !normalMap.has(item.id)) {
+            normalMap.set(item.id, item);
+          }
+        }
+      }
+
+      const sponsored = Array.from(sponsoredMap.values());
+      const normal = Array.from(normalMap.values());
+
+      if (sponsored.length >= 5 && normal.length >= 5) {
+        console.log(`[loadCategoryData] 総合データ読み込み完了: 案件 ${sponsored.length} 本 / 通常 ${normal.length} 本 (全ジャンル統合)`);
         return { sponsored, normal };
       }
+    } catch (err) {
+      console.error('[loadCategoryData] 総合データの統合読み込みエラー:', err);
     }
-  } catch (err) {
-    console.error(`[loadCategoryData] データ読み込み失敗 (${categoryKey}):`, err);
+  }
+
+  // 個別ジャンル（または総合の単体フォールバック）
+  const single = await fetchCategoryJson(categoryKey, cacheBust);
+  if (single.sponsored.length >= 5 && single.normal.length >= 5) {
+    return single;
   }
 
   return { sponsored: [], normal: [] };
@@ -294,42 +346,81 @@ function pickQuestionsFromPool(list, count, isSponsored, seenIds, selectedInThis
   return result;
 }
 
-// 10問サンプリング（厳密に案件5問＋通常5問を抽出してシャッフル）
+// 全10問サンプリング（毎問 50% の確率でコイン投げのように案件/通常を独立抽選）
 function sampleQuestions(sponsoredList, normalList) {
   const seenIds = getSeenVideoIds();
   const selectedInThisGame = new Set();
+  const result = [];
 
-  const selectedSponsored = pickQuestionsFromPool(sponsoredList, 5, true, seenIds, selectedInThisGame);
-  const selectedNormal = pickQuestionsFromPool(normalList, 5, false, seenIds, selectedInThisGame);
+  for (let i = 0; i < 10; i++) {
+    // コイン投げ: 毎問 50% の確率で案件(true)か通常(false)を決定
+    const isSponsored = Math.random() < 0.5;
+    const primaryPool = isSponsored ? sponsoredList : normalList;
+    const fallbackPool = isSponsored ? normalList : sponsoredList;
+
+    // 優先プールから1問抽出
+    let picked = pickQuestionsFromPool(primaryPool, 1, isSponsored, seenIds, selectedInThisGame);
+    if (picked.length === 0) {
+      // 万一候補が尽きた場合は反対のプールから抽出
+      picked = pickQuestionsFromPool(fallbackPool, 1, !isSponsored, seenIds, selectedInThisGame);
+    }
+
+    if (picked.length > 0) {
+      result.push(picked[0]);
+    }
+  }
 
   // 今回選ばれた問題をseenIdsに追加してクッキーに保存
   selectedInThisGame.forEach(id => seenIds.add(id));
   saveSeenVideoIds(seenIds);
 
-  console.log(`[Quiz] 出題決定: ${selectedInThisGame.size}問選出 (現在Cookie保存総数: ${seenIds.size}問)`);
+  const spCount = result.filter(q => q.isSponsored).length;
+  const nmCount = result.filter(q => !q.isSponsored).length;
+  console.log(`[Quiz] 出題決定: 計${result.length}問 (案件: ${spCount}問, 通常: ${nmCount}問 / Cookie保存総数: ${seenIds.size}問)`);
 
-  const combined = [...selectedSponsored, ...selectedNormal];
-  return shuffleArray(combined);
+  return result;
 }
 
 // 1ページ目: ジャンル選択UIの初期化
 // ジャンルを選択すると即座に次ページへ遷移
 function initCategoryPicker() {
-  categoryChipsContainer.innerHTML = '';
-  CATEGORIES.forEach(cat => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'category-chip';
-    chip.textContent = cat.name;
-    chip.dataset.key = cat.key;
+  // 「すべてのジャンル」を上に配置
+  if (categoryAllWrap) {
+    categoryAllWrap.innerHTML = '';
+    const allCat = CATEGORIES.find(cat => cat.key === 'all') || CATEGORIES[0];
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'category-chip';
+    allBtn.textContent = allCat.name;
+    allBtn.dataset.key = allCat.key;
 
-    chip.addEventListener('click', () => {
-      selectedCategory = cat;
+    allBtn.addEventListener('click', () => {
+      selectedCategory = allCat;
       startQuiz();
     });
 
-    categoryChipsContainer.appendChild(chip);
-  });
+    categoryAllWrap.appendChild(allBtn);
+  }
+
+  // 個別ジャンル一覧
+  if (categoryChipsContainer) {
+    categoryChipsContainer.innerHTML = '';
+    const otherCats = CATEGORIES.filter(cat => cat.key !== 'all');
+    otherCats.forEach(cat => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'category-chip';
+      chip.textContent = cat.name;
+      chip.dataset.key = cat.key;
+
+      chip.addEventListener('click', () => {
+        selectedCategory = cat;
+        startQuiz();
+      });
+
+      categoryChipsContainer.appendChild(chip);
+    });
+  }
 }
 
 // クイズ開始処理（ジャンル選択から直接呼ばれる）
@@ -338,7 +429,7 @@ async function startQuiz() {
     loadingNotice.style.display = 'block';
   }
   // 全チップを一時的に無効化
-  const chips = categoryChipsContainer.querySelectorAll('.category-chip');
+  const chips = document.querySelectorAll('.category-chip');
   chips.forEach(c => c.disabled = true);
 
   const data = await loadCategoryData(selectedCategory.key);

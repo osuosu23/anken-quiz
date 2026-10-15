@@ -150,7 +150,7 @@ body.mode-compact-bars .footer-notice {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
 }
 
@@ -160,6 +160,26 @@ body.mode-compact-bars .footer-notice {
   letter-spacing: 0.06em;
   color: var(--text-secondary);
   text-align: center;
+}
+
+/* すべてのジャンル: 上に配置（色・幅・スタイルは他チップと同一） */
+.category-all-wrap {
+  width: 100%;
+  max-width: 580px;
+  display: flex;
+  justify-content: center;
+}
+
+.category-all-wrap .category-chip {
+  width: calc(50% - 7px);
+  max-width: 283px;
+}
+
+@media (max-width: 520px) {
+  .category-all-wrap .category-chip {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 .category-chips-group {
