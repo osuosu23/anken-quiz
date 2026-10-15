@@ -5,43 +5,14 @@
 
 // カテゴリ定義
 const CATEGORIES = [
-  { key: 'all', name: '🌟 総合（全ジャンル）' },
-  { key: 'gadget', name: '📱 ガジェット・家電' },
-  { key: 'beauty', name: '💄 コスメ・美容・暮らし' },
-  { key: 'gaming', name: '🎮 ゲーム' },
-  { key: 'entertainment', name: '🎉 エンタメ・バラエティ' },
-  { key: 'vlog', name: '☕️ 日常・Vlog' },
-  { key: 'vehicles', name: '🚗 車・乗り物' },
-  { key: 'business', name: '💼 ビジネス・教養' }
-];
-
-// ランク判定テーブル
-const RANKS = [
-  {
-    minScore: 10,
-    title: '🏆 伝説の案件ソムリエ',
-    desc: '「歩く景品表示法」の異名を持つ。サムネのわずかな違和感、色味、画角からすべての企業案件を看破する神の領域です。'
-  },
-  {
-    minScore: 8,
-    title: '🥇 一流案件鑑定士',
-    desc: 'ステマを見抜く鋭い眼光の持ち主。巧妙に隠されたタイアップ動画も高確率で見破ることができます。'
-  },
-  {
-    minScore: 6,
-    title: '🥈 中堅リスナー',
-    desc: 'なかなかの見極め力。あからさまな案件には騙されませんが、巧みな企画系タイアップには時々惑わされることも。'
-  },
-  {
-    minScore: 4,
-    title: '🥉 一般視聴者',
-    desc: 'サムネイルの魅力に素直に惹かれるタイプ。「えっ、これ案件だったの！？」と後から気づくことが多いはず。'
-  },
-  {
-    minScore: 0,
-    title: '🌱 ピュアな心の持ち主',
-    desc: 'すべての動画を純粋無垢に楽しむ聖人。PR表記があろうがなかろうが、動画が面白ければオールOK！'
-  }
+  { key: 'all', name: '総合（全ジャンル）' },
+  { key: 'gadget', name: 'ガジェット・家電' },
+  { key: 'beauty', name: 'コスメ・美容・暮らし' },
+  { key: 'gaming', name: 'ゲーム' },
+  { key: 'entertainment', name: 'エンタメ・バラエティ' },
+  { key: 'vlog', name: '日常・Vlog' },
+  { key: 'vehicles', name: '車・乗り物' },
+  { key: 'business', name: 'ビジネス・教養' }
 ];
 
 // DOM要素の参照
@@ -52,14 +23,18 @@ const screens = {
 };
 
 const categoryChipsContainer = document.getElementById('category-chips');
-const btnStart = document.getElementById('btn-start');
+const loadingNotice = document.getElementById('loading-notice');
+const brandSubtitle = document.getElementById('brand-subtitle');
+
+// 背景エフェクト要素
+const gameBgEffects = document.getElementById('game-bg-effects');
+const bgSymbolWrap = document.getElementById('bg-symbol-wrap');
+const bgTextWrap = document.getElementById('bg-text-wrap');
 
 // クイズ画面要素
 const quizCatName = document.getElementById('quiz-cat-name');
 const quizProgressText = document.getElementById('quiz-progress-text');
 const progressBarFill = document.getElementById('progress-bar-fill');
-const quizThumb = document.getElementById('quiz-thumb');
-const quizPlayerContainer = document.getElementById('quiz-player-container');
 const quizIframe = document.getElementById('quiz-iframe');
 const quizVideoTitle = document.getElementById('quiz-video-title');
 const quizChannelTitle = document.getElementById('quiz-channel-title');
@@ -77,11 +52,8 @@ const btnNext = document.getElementById('btn-next');
 
 // 結果画面要素
 const resultScore = document.getElementById('result-score');
-const resultRankTitle = document.getElementById('result-rank-title');
-const resultRankDesc = document.getElementById('result-rank-desc');
 const btnShareX = document.getElementById('btn-share-x');
 const btnReplay = document.getElementById('btn-replay');
-const btnChangeCat = document.getElementById('btn-change-cat');
 const reviewList = document.getElementById('review-list');
 
 // ゲーム状態管理
@@ -91,7 +63,18 @@ let currentIndex = 0;
 let userAnswers = []; // 各問の回答履歴
 let isCurrentAnswered = false;
 
-// Fisher-Yates 配列シャッフル
+// HTMLエスケープヘルパー
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// 配列シャッフル (Fisher-Yates)
 function shuffleArray(array) {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
@@ -101,18 +84,84 @@ function shuffleArray(array) {
   return result;
 }
 
-// 画面切り替え
+// ゲーム背景エフェクト表示（巨大◯・✕ & 案件・案件じゃない）
+let effectTimerId = null;
+
+function showAnswerEffect(isCorrect, isSponsored) {
+  if (!gameBgEffects || !bgSymbolWrap || !bgTextWrap) return;
+
+  clearAnswerEffect();
+
+  // 1. 巨大 ◯ / ✕
+  if (isCorrect) {
+    bgSymbolWrap.innerHTML = `
+      <svg class="bg-symbol-svg symbol-correct" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="74" fill="none" stroke="currentColor" stroke-width="26" />
+      </svg>
+    `;
+  } else {
+    bgSymbolWrap.innerHTML = `
+      <svg class="bg-symbol-svg symbol-wrong" viewBox="0 0 200 200">
+        <line x1="38" y1="38" x2="162" y2="162" stroke="currentColor" stroke-width="26" stroke-linecap="round" />
+        <line x1="162" y1="38" x2="38" y2="162" stroke="currentColor" stroke-width="26" stroke-linecap="round" />
+      </svg>
+    `;
+  }
+
+  // 2. 巨大「案件」/「案件\nじゃない」
+  if (isSponsored) {
+    bgTextWrap.innerHTML = `<span class="bg-stamp-text stamp-sponsored">案件</span>`;
+  } else {
+    bgTextWrap.innerHTML = `<span class="bg-stamp-text stamp-normal">案件<br>じゃない</span>`;
+  }
+
+  gameBgEffects.className = 'game-bg-effects active';
+
+  // 要望: 「もう1びょう長く」（合計2秒で消える）
+  effectTimerId = setTimeout(() => {
+    clearAnswerEffect();
+  }, 2000);
+}
+
+// ゲーム背景エフェクトの消去
+function clearAnswerEffect() {
+  if (effectTimerId) {
+    clearTimeout(effectTimerId);
+    effectTimerId = null;
+  }
+  if (!gameBgEffects) return;
+  gameBgEffects.className = 'game-bg-effects';
+  if (bgSymbolWrap) bgSymbolWrap.innerHTML = '';
+  if (bgTextWrap) bgTextWrap.innerHTML = '';
+}
+
+// 画面切り替え（DOM操作）
 function switchScreen(screenName) {
+  clearAnswerEffect();
   Object.values(screens).forEach(screen => {
     screen.classList.remove('active');
   });
   if (screens[screenName]) {
     screens[screenName].classList.add('active');
   }
+
+  // 1ページ目（category）と2・3ページ目（quiz・result）でヘッダー・フッターの表示を切り替え
+  if (screenName === 'category') {
+    document.body.classList.remove('mode-compact-bars');
+    if (brandSubtitle) {
+      brandSubtitle.textContent = 'サムネとタイトルだけで企業案件を見抜こう！';
+    }
+  } else {
+    document.body.classList.add('mode-compact-bars');
+    if (brandSubtitle) {
+      brandSubtitle.textContent = 'サムネとタイトルだけで、企業案件か見抜けるか？';
+    }
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// カテゴリデータの読み込み（完全相対パス対応・独自ドメイン / キャッシュバスター付き）
+// カテゴリデータの読み込み
 async function loadCategoryData(categoryKey) {
   const cacheBust = `?t=${Date.now()}`;
   const spUrl = `./data/${categoryKey}_sponsored.json${cacheBust}`;
@@ -133,10 +182,10 @@ async function loadCategoryData(categoryKey) {
       }
     }
   } catch (err) {
-    console.warn(`[loadCategoryData] 相対パスでの読み込みに失敗 (${categoryKey}):`, err);
+    console.warn(`[loadCategoryData] 相対パスでの読み込み失敗 (${categoryKey}):`, err);
   }
 
-  // 万が一データ不足・失敗時の予備フォールバック（総合データ・相対パス）
+  // フォールバック（総合データ）
   try {
     const [allSpRes, allNmRes] = await Promise.all([
       fetch('./data/all_sponsored.json'),
@@ -152,7 +201,7 @@ async function loadCategoryData(categoryKey) {
   }
 }
 
-// 10問サンプラー（厳密に案件5問＋通常5問を抽出してシャッフル）
+// 10問サンプリング（厳密に案件5問＋通常5問を抽出してシャッフル）
 function sampleQuestions(sponsoredList, normalList) {
   const shuffledSponsored = shuffleArray(sponsoredList).slice(0, 5).map(item => ({
     ...item,
@@ -168,37 +217,44 @@ function sampleQuestions(sponsoredList, normalList) {
   return shuffleArray(combined);
 }
 
-// カテゴリ選択UIの初期化
+// 1ページ目: ジャンル選択UIの初期化
+// ジャンルを選択すると即座に次ページへ遷移
 function initCategoryPicker() {
   categoryChipsContainer.innerHTML = '';
-  CATEGORIES.forEach((cat, index) => {
+  CATEGORIES.forEach(cat => {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.className = `category-chip ${index === 0 ? 'selected' : ''}`;
+    chip.className = 'category-chip';
     chip.textContent = cat.name;
     chip.dataset.key = cat.key;
 
     chip.addEventListener('click', () => {
-      document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('selected'));
-      chip.classList.add('selected');
       selectedCategory = cat;
+      startQuiz();
     });
 
     categoryChipsContainer.appendChild(chip);
   });
 }
 
-// クイズ開始
+// クイズ開始処理（ジャンル選択から直接呼ばれる）
 async function startQuiz() {
-  btnStart.disabled = true;
-  btnStart.textContent = '問題を作成中...';
+  if (loadingNotice) {
+    loadingNotice.style.display = 'block';
+  }
+  // 全チップを一時的に無効化
+  const chips = categoryChipsContainer.querySelectorAll('.category-chip');
+  chips.forEach(c => c.disabled = true);
 
   const data = await loadCategoryData(selectedCategory.key);
 
+  if (loadingNotice) {
+    loadingNotice.style.display = 'none';
+  }
+  chips.forEach(c => c.disabled = false);
+
   if (data.sponsored.length === 0 && data.normal.length === 0) {
-    alert('クイズデータの取得に失敗しました。');
-    btnStart.disabled = false;
-    btnStart.textContent = 'クイズを始める（全10問）';
+    alert('クイズデータの読み込みに失敗しました。');
     return;
   }
 
@@ -206,15 +262,14 @@ async function startQuiz() {
   currentIndex = 0;
   userAnswers = [];
 
-  btnStart.disabled = false;
-  btnStart.textContent = 'クイズを始める（全10問）';
-
+  // 問題画面へDOM切り替え
   switchScreen('quiz');
   renderQuestion(currentIndex);
 }
 
-// 問題の描画
+// 2ページ目: 問題画面の描画
 function renderQuestion(index) {
+  clearAnswerEffect();
   const q = questions[index];
   isCurrentAnswered = false;
 
@@ -223,20 +278,14 @@ function renderQuestion(index) {
   quizProgressText.textContent = `第 ${index + 1} / 10 問`;
   progressBarFill.style.width = `${((index + 1) / 10) * 100}%`;
 
-  // サムネイル設定
-  quizThumb.src = q.thumbnailUrl || `https://i.ytimg.com/vi/${q.id}/hqdefault.jpg`;
-  quizThumb.alt = q.title;
-  quizThumb.style.display = 'block';
+  // 画像は使わず、最初からYouTube埋め込みプレーヤーを表示（自動再生なし）
+  quizIframe.src = `https://www.youtube-nocookie.com/embed/${q.id}?rel=0`;
 
-  // プレイヤー非表示＆リセット
-  quizPlayerContainer.classList.remove('active');
-  quizIframe.src = '';
-
-  // メタ情報
+  // メタ情報（タイトル・投稿者）
   quizVideoTitle.textContent = q.title;
-  quizChannelTitle.textContent = q.channelTitle || 'YouTube Channel';
+  quizChannelTitle.textContent = `投稿者: ${q.channelTitle || '不明'}`;
 
-  // ボタンリセット
+  // ボタン状態リセット
   btnAnswerSponsored.disabled = false;
   btnAnswerNormal.disabled = false;
   choiceButtonsRow.style.display = 'grid';
@@ -260,24 +309,22 @@ function handleAnswer(userChoice) {
     isCorrect: isCorrect
   });
 
-  // 選択ボタンを無効化
-  btnAnswerSponsored.disabled = true;
-  btnAnswerNormal.disabled = true;
+  // 要望: 「回答ボタンは回答したら消してそこに答えをだして、あと高さが変わらないように」
+  choiceButtonsRow.style.display = 'none';
 
-  // YouTube 埋め込みプレイヤーを起動（回答後に正解検証可能にする）
-  quizPlayerContainer.classList.add('active');
-  quizIframe.src = `https://www.youtube-nocookie.com/embed/${q.id}?autoplay=1&rel=0`;
-
-  // フィードバック表示
+  // フィードバック表示（ボタンと同じ領域に入れ替え表示）
   feedbackBox.classList.add('active');
   feedbackBanner.className = `feedback-banner ${isCorrect ? 'correct' : 'wrong'}`;
   feedbackIcon.textContent = isCorrect ? '⭕️' : '❌';
   feedbackTitle.textContent = isCorrect ? '正解！' : '不正解！';
   feedbackDetail.textContent = q.isSponsored
-    ? 'この動画は【企業案件】です。'
-    : 'この動画は【通常の動画（非案件）】です。';
+    ? 'この動画は【案件】です。'
+    : 'この動画は【案件じゃない】です。';
 
-  // 次へボタンのテキスト
+  // 要望: 「背景に 正解ならめちゃくちゃ大きな◯ 不正解ならばつ をアニメーションでだして。案件なら案件、案件じゃないなら案件\nじゃない」
+  showAnswerEffect(isCorrect, q.isSponsored);
+
+  // 次へボタンのラベル
   btnNext.textContent = (currentIndex === 9) ? '結果を見る' : '次の問題へ';
 }
 
@@ -291,61 +338,66 @@ function handleNext() {
   }
 }
 
-// 結果画面表示
+// 3ページ目: 結果画面表示
 function showResult() {
+  // 問題画面のiframe再生を停止
+  quizIframe.src = '';
+
   const correctCount = userAnswers.filter(a => a.isCorrect).length;
+  // 変な称号は使わず、正解数のみシンプルに表示
   resultScore.textContent = `${correctCount} / 10`;
 
-  // ランク判定
-  const rank = RANKS.find(r => correctCount >= r.minScore) || RANKS[RANKS.length - 1];
-  resultRankTitle.textContent = rank.title;
-  resultRankDesc.textContent = rank.desc;
-
-  // X（Twitter）シェアリンク生成
-  const shareText = `【サムネイル案件クイズ】\nジャンル: ${selectedCategory.name}\n結果: 10問中 ${correctCount}問 正解！\n称号: ${rank.title}\n\nサムネとタイトルだけで企業案件を見抜けるか挑戦しよう！\n`;
+  // Xシェアリンク生成（称号は含めない）
+  const shareText = `【サムネイル案件クイズ】\nジャンル: ${selectedCategory.name}\n正解数: 10問中 ${correctCount}問！\n\nサムネとタイトルだけで企業案件か見抜けるか挑戦しよう！\n`;
   const shareUrl = window.location.href.split('#')[0];
   const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}&hashtags=${encodeURIComponent('サムネイル案件クイズ,YouTube')}`;
   btnShareX.href = xUrl;
 
-  // 振り返りリスト作成
+  // 振り返りリスト作成（画像は使わず、すべてYouTube埋め込みで表示）
   reviewList.innerHTML = '';
   userAnswers.forEach((ans, idx) => {
     const q = ans.question;
     const item = document.createElement('div');
-    item.className = 'review-item';
+    item.className = 'review-card';
 
     item.innerHTML = `
-      <a href="https://www.youtube.com/watch?v=${q.id}" target="_blank" rel="noopener noreferrer">
-        <img class="review-thumb" src="${q.thumbnailUrl}" alt="${q.title}">
-      </a>
-      <div class="review-meta">
-        <a class="review-title" href="https://www.youtube.com/watch?v=${q.id}" target="_blank" rel="noopener noreferrer">${q.title}</a>
-        <span class="review-channel">${q.channelTitle}</span>
+      <div class="review-embed-container">
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/${q.id}?rel=0"
+          title="${escapeHtml(q.title)}"
+          loading="lazy"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
       </div>
-      <div class="review-badge-group">
-        <span class="badge-status ${ans.isCorrect ? 'correct' : 'wrong'}">
-          ${ans.isCorrect ? '⭕️ 正解' : '❌ 不正解'}
-        </span>
-        <span class="badge-tag">${q.isSponsored ? '💼 案件' : '🎬 通常'}</span>
+      <div class="review-info">
+        <div class="review-status-row">
+          <span class="badge-status ${ans.isCorrect ? 'correct' : 'wrong'}">
+            ${ans.isCorrect ? '⭕️ 正解' : '❌ 不正解'}
+          </span>
+          <span class="badge-type">
+            ${q.isSponsored ? '案件' : '案件じゃない'}
+          </span>
+        </div>
+        <h3 class="review-title">${escapeHtml(q.title)}</h3>
+        <p class="review-channel">投稿者: ${escapeHtml(q.channelTitle || '不明')}</p>
       </div>
     `;
 
     reviewList.appendChild(item);
   });
 
+  // 結果画面へDOM切り替え
   switchScreen('result');
 }
 
-// イベントリスナー登録
+// イベントリスナーの登録
 function initEventListeners() {
-  btnStart.addEventListener('click', startQuiz);
-
   btnAnswerSponsored.addEventListener('click', () => handleAnswer(true));
   btnAnswerNormal.addEventListener('click', () => handleAnswer(false));
   btnNext.addEventListener('click', handleNext);
 
-  btnReplay.addEventListener('click', startQuiz);
-  btnChangeCat.addEventListener('click', () => {
+  btnReplay.addEventListener('click', () => {
     switchScreen('category');
   });
 }

@@ -3,18 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>サムネイル案件クイズ - YouTube企業案件を見抜け！</title>
-  <meta name="description" content="サムネとタイトルだけで企業案件か通常動画かを見抜くYouTubeクイズゲーム！">
+  <title>サムネイル案件クイズ</title>
+  <meta name="description" content="サムネとタイトルだけで企業案件を見抜こう！">
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
+  <!-- ゲーム背景エフェクトレイヤー（巨大 ◯・✕・案件・案件じゃない） -->
+  <div id="game-bg-effects" class="game-bg-effects" aria-hidden="true">
+    <div id="bg-symbol-wrap" class="bg-symbol-wrap"></div>
+    <div id="bg-text-wrap" class="bg-text-wrap"></div>
+  </div>
+
   <div class="app-container">
-    <header class="app-header">
-      <h1 class="brand-title">サムネイル案件クイズ</h1>
-      <p class="brand-subtitle">サムネとタイトルだけで、企業案件か見抜けるか？</p>
+    <header id="app-header" class="app-header">
+      <h1 id="brand-title" class="brand-title">サムネイル案件クイズ</h1>
+      <p id="brand-subtitle" class="brand-subtitle">サムネとタイトルだけで企業案件を見抜こう！</p>
     </header>
 
-    <!-- SCREEN 1: CATEGORY SELECTION -->
+    <!-- 1ページ目: ジャンル選択画面 -->
     <main id="screen-category" class="screen category-screen active">
       <div class="category-section">
         <p class="section-label">ジャンルを選択</p>
@@ -22,10 +28,10 @@
           <!-- Populated by JavaScript -->
         </div>
       </div>
-      <button id="btn-start" class="start-btn" type="button">クイズを始める（全10問）</button>
+      <p id="loading-notice" class="loading-notice" style="display: none;">問題を読み込み中...</p>
     </main>
 
-    <!-- SCREEN 2: QUIZ QUESTION -->
+    <!-- 2ページ目: 問題画面 -->
     <main id="screen-quiz" class="screen quiz-screen">
       <div class="quiz-top-bar">
         <span id="quiz-cat-name" class="quiz-category-badge">総合</span>
@@ -36,39 +42,40 @@
         <div id="progress-bar-fill" class="progress-bar-fill"></div>
       </div>
 
-      <!-- Media Stage (16:9) -->
+      <!-- YouTube埋め込みプレーヤー（画像なし・いきなり埋め込み） -->
       <div class="media-stage">
-        <img id="quiz-thumb" class="thumbnail-image" src="" alt="サムネイル">
-        <div id="quiz-player-container" class="video-player-container">
-          <iframe id="quiz-iframe" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
+        <iframe
+          id="quiz-iframe"
+          src=""
+          title="YouTube video player"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
       </div>
 
-      <p id="quiz-notice" class="pre-guess-notice">※ 回答するまでは動画を再生しないでください</p>
-
+      <!-- メタ情報（タイトル・投稿者） -->
       <div class="video-meta">
-        <h2 id="quiz-video-title" class="video-title">動画タイトル</h2>
-        <p id="quiz-channel-title" class="channel-title">チャンネル名</p>
+        <h2 id="quiz-video-title" class="video-title"></h2>
+        <p id="quiz-channel-title" class="channel-title"></p>
       </div>
 
-      <!-- Actions -->
-      <div class="quiz-actions">
-        <!-- 2 Choice Buttons -->
+      <!-- 回答アクション（回答したらボタンが消えて答えが表示され、高さが変わらない） -->
+      <div class="quiz-actions-container">
         <div id="choice-buttons-row" class="choice-buttons-row">
           <button id="btn-answer-sponsored" class="btn-choice btn-choice-sponsored" type="button">
-            <span>💼 案件</span>
+            案件
           </button>
           <button id="btn-answer-normal" class="btn-choice btn-choice-normal" type="button">
-            <span>🎬 案件じゃない</span>
+            案件じゃない
           </button>
         </div>
 
-        <!-- Immediate Feedback Box -->
+        <!-- 回答直後のフィードバック（ボタンの代わりに同じ場所に表示） -->
         <div id="feedback-box" class="feedback-box">
           <div id="feedback-banner" class="feedback-banner">
-            <span id="feedback-icon">⭕️</span>
-            <div>
-              <div id="feedback-title">正解！</div>
+            <span id="feedback-icon" class="feedback-icon">⭕️</span>
+            <div class="feedback-texts">
+              <div id="feedback-title" class="feedback-title">正解！</div>
               <div id="feedback-detail" class="feedback-subtext">この動画は企業案件です</div>
             </div>
           </div>
@@ -77,38 +84,35 @@
       </div>
     </main>
 
-    <!-- SCREEN 3: RESULT -->
+    <!-- 3ページ目: 結果画面 -->
     <main id="screen-result" class="screen result-screen">
       <div class="score-display">
-        <div id="result-score" class="score-number">8 / 10</div>
-        <div id="result-rank-title" class="score-rank-title">一流案件鑑定士</div>
-        <p id="result-rank-desc" class="score-rank-desc">ステマを見抜く鋭い眼光の持ち主。サムネの違和感に即座に気づけます。</p>
+        <span class="score-label">正解数</span>
+        <div id="result-score" class="score-number">0 / 10</div>
       </div>
 
       <div class="result-actions">
         <a id="btn-share-x" class="btn-share-x" href="#" target="_blank" rel="noopener noreferrer">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
           </svg>
           結果をXでポストする
         </a>
 
-        <div class="btn-action-row">
-          <button id="btn-replay" class="btn-action-secondary" type="button">もう一度遊ぶ</button>
-          <button id="btn-change-cat" class="btn-action-secondary" type="button">ジャンルを選び直す</button>
-        </div>
+        <button id="btn-replay" class="btn-replay-main" type="button">もう一度遊ぶ</button>
       </div>
 
+      <!-- 振り返りセクション（画像は使わず、YouTube埋め込みで表示） -->
       <div class="review-section">
-        <p class="section-label">出題された動画（全10問）</p>
+        <p class="section-label">出題された動画の振り返り（全10問）</p>
         <div id="review-list" class="review-list">
-          <!-- Dynamically inserted review items -->
+          <!-- Populated by JavaScript -->
         </div>
       </div>
     </main>
 
-    <footer class="app-footer">
-      <p>※ 本クイズはYouTube Data APIのプロモーション開示設定に基づいて判定しています。</p>
+    <footer id="app-footer" class="app-footer">
+      <p class="footer-notice">本サイトはYouTube Data API を使用し、YouTubeの利用規約を守って運営しています。</p>
     </footer>
   </div>
 
