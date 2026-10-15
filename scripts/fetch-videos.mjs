@@ -48,7 +48,7 @@ const BLOCKED_CHANNEL_IDS = new Set([
 // チャンネルタイトルによる除外正規表現（ニュース系報道、スポーツ中継・速報系公式チャンネル）
 const BLOCKED_CHANNEL_TITLE_REGEX = /^(?:ANNnewsCH|FNN.*|日テレNEWS.*|TBS NEWS DIG.*|テレ東BIZ.*|SPOTVNOW.*|DAZN.*|.*NEWS DIG|カンテレ.*|読売テレビ.*|サンテレビ|.*パ・リーグTV.*|.*TBS スポーツ|スポーツナビ.*|日刊スポーツ|NHK.*)$/i;
 
-// ニュース・スポーツなど除外判定（カテゴリー分析、チャンネルID、チャンネル名、*テレビ*）
+// ニュース・スポーツなど除外判定（カテゴリー分析、チャンネルID、チャンネル名: *テレビ*, *公式*）
 function isBlockedVideo(item) {
   const categoryId = item.snippet?.categoryId;
   if (categoryId && BLOCKED_CATEGORY_IDS.has(String(categoryId))) {
@@ -61,7 +61,7 @@ function isBlockedVideo(item) {
   }
 
   const channelTitle = item.snippet?.channelTitle || '';
-  if (channelTitle.includes('テレビ')) {
+  if (channelTitle.includes('テレビ') || channelTitle.includes('公式')) {
     return true;
   }
   if (BLOCKED_CHANNEL_TITLE_REGEX.test(channelTitle)) {
