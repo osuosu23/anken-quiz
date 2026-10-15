@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Fetch and overlay latest data from data branch
+        run: |
+          git fetch origin data || true
+          git checkout origin/data -- data/ || true
+
       - name: Build with Vite (Relative Paths)
         run: npm run build
 
