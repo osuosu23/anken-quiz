@@ -192,19 +192,123 @@ async function loadCategoryData(categoryKey) {
 
 
 
+// Cookie関連ヘルパー
+const SEEN_COOKIE_NAME = 'seen_video_ids';
+const MAX_SAVED_IDS = 250; // Cookieサイズ上限（4KB）を超えないための安全上限
+
+// Cookieから既出IDを取得
+function getSeenVideoIds() {
+  const cookies = document.cookie.split(';');
+  for (let c of cookies) {
+    const [key, ...rest] = c.trim().split('=');
+    if (key === SEEN_COOKIE_NAME) {
+      const val = rest.join('=');
+      if (!val) return new Set();
+      try {
+        const decoded = decodeURIComponent(val);
+        const ids = decoded.split(',').map(id => id.trim()).filter(id => id.length > 0);
+        return new Set(ids);
+      } catch (err) {
+        console.error('[Cookie] 読み込みエラー:', err);
+        return new Set();
+      }
+    }
+  }
+  return new Set();
+}
+
+// CookieにIDを保存
+function saveSeenVideoIds(seenSet) {
+  let ids = Array.from(seenSet);
+  if (ids.length > MAX_SAVED_IDS) {
+    ids = ids.slice(ids.length - MAX_SAVED_IDS);
+  }
+  const val = encodeURIComponent(ids.join(','));
+  const maxAge = 60 * 60 * 24 * 365; // 1年
+  document.cookie = `${SEEN_COOKIE_NAME}=${val}; path=/; max-age=${maxAge}; expires=Fri, 31 Dec 2038 23:59:59 GMT; SameSite=Lax`;
+}
+
+// Cookieをリセット（削除）
+function resetSeenCookie() {
+  document.cookie = `${SEEN_COOKIE_NAME}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+  console.log('[Cookie] 既出IDのCookieをリセットしました');
+}
+
+/**
+ * リストから指定件数の動画を抽出する。
+ * - 今回のゲーム内での重複は避ける。
+ * - Cookieに保存された既出ID（seenIds）は出さないようにする。
+ * - ランダムに選んだ候補が既出の場合、再試行する。
+ * - 5回繰り返してもやったことあるのに当たったらクッキーをリセットする。
+ */
+function pickQuestionsFromPool(list, count, isSponsored, seenIds, selectedInThisGame) {
+  const result = [];
+
+  for (let i = 0; i < count; i++) {
+    const available = list.filter(item => !selectedInThisGame.has(item.id));
+    if (available.length === 0) {
+      break;
+    }
+
+    let attempts = 0;
+    while (true) {
+      const candidate = available[Math.floor(Math.random() * available.length)];
+
+      // 既出（Cookieにある）か判定
+      if (seenIds.has(candidate.id)) {
+        attempts++;
+        if (attempts >= 5) {
+          // 5回繰り返してもやったことあるのに当たったらクッキーをリセット
+          console.log(`[Quiz] 5回連続で既出動画に当たったため、クッキーをリセットします (該当ID: ${candidate.id})`);
+          resetSeenCookie();
+          seenIds.clear();
+
+          // リセットされたのでこの候補を採用
+          selectedInThisGame.add(candidate.id);
+          result.push({
+            ...candidate,
+            isSponsored
+          });
+          break;
+        }
+        // 5回未満なら再抽選を繰り返す
+        continue;
+      }
+
+      // 未出題の動画を引けた
+      selectedInThisGame.add(candidate.id);
+      result.push({
+        ...candidate,
+        isSponsored
+      });
+      break;
+    }
+  }
+
+  // 万一候補が足りなかった場合の安全フォールバック
+  while (result.length < count && list.length > 0) {
+    const fallback = list[Math.floor(Math.random() * list.length)];
+    result.push({ ...fallback, isSponsored });
+  }
+
+  return result;
+}
+
 // 10問サンプリング（厳密に案件5問＋通常5問を抽出してシャッフル）
 function sampleQuestions(sponsoredList, normalList) {
-  const shuffledSponsored = shuffleArray(sponsoredList).slice(0, 5).map(item => ({
-    ...item,
-    isSponsored: true
-  }));
+  const seenIds = getSeenVideoIds();
+  const selectedInThisGame = new Set();
 
-  const shuffledNormal = shuffleArray(normalList).slice(0, 5).map(item => ({
-    ...item,
-    isSponsored: false
-  }));
+  const selectedSponsored = pickQuestionsFromPool(sponsoredList, 5, true, seenIds, selectedInThisGame);
+  const selectedNormal = pickQuestionsFromPool(normalList, 5, false, seenIds, selectedInThisGame);
 
-  const combined = [...shuffledSponsored, ...shuffledNormal];
+  // 今回選ばれた問題をseenIdsに追加してクッキーに保存
+  selectedInThisGame.forEach(id => seenIds.add(id));
+  saveSeenVideoIds(seenIds);
+
+  console.log(`[Quiz] 出題決定: ${selectedInThisGame.size}問選出 (現在Cookie保存総数: ${seenIds.size}問)`);
+
+  const combined = [...selectedSponsored, ...selectedNormal];
   return shuffleArray(combined);
 }
 
