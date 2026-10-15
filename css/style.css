@@ -286,6 +286,8 @@ body.mode-compact-bars .footer-notice {
   text-align: center;
   gap: 6px;
   width: 100%;
+  min-height: 84px; /* タイトル2行分とチャンネル名の高さを確保し、問題切替時のガタつきも防止 */
+  justify-content: center;
 }
 
 .video-title {
@@ -298,6 +300,7 @@ body.mode-compact-bars .footer-notice {
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-align: center;
+  min-height: 55px;
 }
 
 .channel-title {
@@ -313,16 +316,23 @@ body.mode-compact-bars .footer-notice {
 
 /* 
    回答アクションコンテナ
-   回答ボタンが消えて答えに入れ替わっても、高さが変わらない設計 (min-height 144px)
+   高さを厳密に134pxで固定し、上端配置（flex-start）に設定。
+   回答前：上から0〜64pxに回答ボタン
+   回答後：まったく同じ上から0〜64pxに答えバナー、その下に次へボタン
+   これにより、ボタンがあった場所に答えが出て、高さも画面位置も1pxも変わらない！
 */
 .quiz-actions-container {
   width: 100%;
   max-width: 500px;
-  min-height: 144px;
+  height: 134px;
+  min-height: 134px;
+  max-height: 134px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .choice-buttons-row {
@@ -330,6 +340,7 @@ body.mode-compact-bars .footer-notice {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   width: 100%;
+  height: 64px;
 }
 
 .btn-choice {
@@ -338,15 +349,16 @@ body.mode-compact-bars .footer-notice {
   font-family: inherit;
   font-size: 19px;
   font-weight: 900;
-  padding: 18px 22px;
+  padding: 0 22px;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  min-height: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .btn-choice:active {
@@ -371,13 +383,15 @@ body.mode-compact-bars .footer-notice {
   background-color: var(--bg-chip-hover);
 }
 
-/* Answer feedback (ボタンと同じ領域に入れ替え表示) */
+/* Answer feedback (回答ボタンとまったく同じ位置・同じ高さ64pxに答えを表示) */
 .feedback-box {
   display: none;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
+  height: 134px;
+  box-sizing: border-box;
 }
 
 .feedback-box.active {
@@ -386,14 +400,17 @@ body.mode-compact-bars .footer-notice {
 
 .feedback-banner {
   width: 100%;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 14px 20px;
+  padding: 6px 20px;
   border-radius: var(--radius-pill);
   text-align: center;
-  min-height: 62px;
 }
 
 .feedback-banner.correct {
@@ -408,6 +425,7 @@ body.mode-compact-bars .footer-notice {
 
 .feedback-icon {
   font-size: 22px;
+  line-height: 1;
 }
 
 .feedback-texts {
@@ -418,14 +436,16 @@ body.mode-compact-bars .footer-notice {
 }
 
 .feedback-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
+  line-height: 1.2;
 }
 
 .feedback-subtext {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .btn-next-question {
@@ -436,10 +456,13 @@ body.mode-compact-bars .footer-notice {
   font-family: inherit;
   font-size: 17px;
   font-weight: 800;
-  padding: 16px 24px;
+  padding: 0 24px;
   border-radius: var(--radius-pill);
   cursor: pointer;
+  height: 56px;
   min-height: 56px;
+  max-height: 56px;
+  box-sizing: border-box;
   width: 100%;
   display: flex;
   align-items: center;
