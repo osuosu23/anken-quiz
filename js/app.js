@@ -161,45 +161,69 @@ function switchScreen(screenName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// カテゴリデータの読み込み
-async function loadCategoryData(categoryKey) {
+// データ取得用ベースURL候補（GitHub Pages / Raw GitHub / ローカル）
+const DATA_BASE_URLS = [
+  'https://osuosu23.github.io/anken-quiz-data/data',
+  'https://osuosu23.github.io/anken-quiz-data',
+  'https://raw.githubusercontent.com/osuosu23/anken-quiz-data/main/data',
+  './data'
+];
+
+// 単一ベースURLから指定カテゴリのデータをフェッチ
+async function fetchCategoryFromBase(baseUrl, categoryKey) {
   const cacheBust = `?t=${Date.now()}`;
-  const spUrl = `./data/${categoryKey}_sponsored.json${cacheBust}`;
-  const nmUrl = `./data/${categoryKey}_normal.json${cacheBust}`;
+  const spUrl = `${baseUrl}/${categoryKey}_sponsored.json${cacheBust}`;
+  const nmUrl = `${baseUrl}/${categoryKey}_normal.json${cacheBust}`;
 
-  try {
-    const [spRes, nmRes] = await Promise.all([
-      fetch(spUrl),
-      fetch(nmUrl)
-    ]);
+  const [spRes, nmRes] = await Promise.all([
+    fetch(spUrl),
+    fetch(nmUrl)
+  ]);
 
-    if (spRes.ok && nmRes.ok) {
-      const sponsored = await spRes.json();
-      const normal = await nmRes.json();
+  if (spRes.ok && nmRes.ok) {
+    const sponsored = await spRes.json();
+    const normal = await nmRes.json();
 
-      if (sponsored.length >= 5 && normal.length >= 5) {
-        return { sponsored, normal };
+    if (Array.isArray(sponsored) && Array.isArray(normal) && sponsored.length >= 5 && normal.length >= 5) {
+      return { sponsored, normal };
+    }
+  }
+  return null;
+}
+
+// カテゴリデータの読み込み（フォールバックチェーン対応）
+async function loadCategoryData(categoryKey) {
+  // 1. 各BaseURLから該当カテゴリの取得を試みる
+  for (const baseUrl of DATA_BASE_URLS) {
+    try {
+      const data = await fetchCategoryFromBase(baseUrl, categoryKey);
+      if (data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn(`[loadCategoryData] ${baseUrl} からの取得失敗 (${categoryKey}):`, err);
+    }
+  }
+
+  // 2. 該当カテゴリが取得できない場合、フォールバック（総合データ: all）を試みる
+  if (categoryKey !== 'all') {
+    console.warn(`[loadCategoryData] ${categoryKey} のデータ不足のため、総合(all)データを試行します`);
+    for (const baseUrl of DATA_BASE_URLS) {
+      try {
+        const data = await fetchCategoryFromBase(baseUrl, 'all');
+        if (data) {
+          return data;
+        }
+      } catch (err) {
+        console.warn(`[loadCategoryData] ${baseUrl} からの総合データ取得失敗:`, err);
       }
     }
-  } catch (err) {
-    console.warn(`[loadCategoryData] 相対パスでの読み込み失敗 (${categoryKey}):`, err);
   }
 
-  // フォールバック（総合データ）
-  try {
-    const [allSpRes, allNmRes] = await Promise.all([
-      fetch('./data/all_sponsored.json'),
-      fetch('./data/all_normal.json')
-    ]);
-    return {
-      sponsored: allSpRes.ok ? await allSpRes.json() : [],
-      normal: allNmRes.ok ? await allNmRes.json() : []
-    };
-  } catch (err) {
-    console.error('データ読み込みエラー:', err);
-    return { sponsored: [], normal: [] };
-  }
+  console.error('データ読み込みエラー: 全てのソースからデータを取得できませんでした。');
+  return { sponsored: [], normal: [] };
 }
+
 
 // 10問サンプリング（厳密に案件5問＋通常5問を抽出してシャッフル）
 function sampleQuestions(sponsoredList, normalList) {
