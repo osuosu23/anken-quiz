@@ -12,7 +12,7 @@
     },
     {
       "key": "gadget",
-      "name": "ガジェット・家電",
+      "name": "科学と技術",
       "counts": {
         "sponsored": 40,
         "normal": 41,
@@ -21,7 +21,7 @@
     },
     {
       "key": "beauty",
-      "name": "コスメ・美容・暮らし",
+      "name": "ハウツーとスタイル",
       "counts": {
         "sponsored": 44,
         "normal": 50,
@@ -39,7 +39,7 @@
     },
     {
       "key": "entertainment",
-      "name": "エンタメ・バラエティ",
+      "name": "エンターテイメント",
       "counts": {
         "sponsored": 48,
         "normal": 49,
@@ -48,7 +48,7 @@
     },
     {
       "key": "vlog",
-      "name": "日常・Vlog",
+      "name": "ブログ",
       "counts": {
         "sponsored": 48,
         "normal": 50,
@@ -57,7 +57,7 @@
     },
     {
       "key": "vehicles",
-      "name": "車・乗り物",
+      "name": "自動車と乗り物",
       "counts": {
         "sponsored": 44,
         "normal": 47,
@@ -66,7 +66,7 @@
     },
     {
       "key": "sports",
-      "name": "スポーツ・筋トレ",
+      "name": "スポーツ",
       "counts": {
         "sponsored": 48,
         "normal": 50,
@@ -75,7 +75,7 @@
     },
     {
       "key": "business",
-      "name": "ビジネス・教養",
+      "name": "教育",
       "counts": {
         "sponsored": 50,
         "normal": 49,

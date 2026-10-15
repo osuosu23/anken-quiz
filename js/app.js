@@ -6,13 +6,13 @@
 // カテゴリ定義
 const CATEGORIES = [
   { key: 'all', name: '総合（全ジャンル）' },
-  { key: 'gadget', name: 'ガジェット・家電' },
-  { key: 'beauty', name: 'コスメ・美容・暮らし' },
+  { key: 'gadget', name: '科学と技術' },
+  { key: 'beauty', name: 'ハウツーとスタイル' },
   { key: 'gaming', name: 'ゲーム' },
-  { key: 'entertainment', name: 'エンタメ・バラエティ' },
-  { key: 'vlog', name: '日常・Vlog' },
-  { key: 'vehicles', name: '車・乗り物' },
-  { key: 'business', name: 'ビジネス・教養' }
+  { key: 'entertainment', name: 'エンターテイメント' },
+  { key: 'vlog', name: 'ブログ' },
+  { key: 'vehicles', name: '自動車と乗り物' },
+  { key: 'business', name: '教育' }
 ];
 
 // DOM要素の参照
