@@ -1,0 +1,77 @@
+{
+  "updatedAt": "2026-10-15T15:21:05.652Z",
+  "categories": [
+    {
+      "key": "all",
+      "name": "総合（全ジャンル）",
+      "counts": {
+        "sponsored": 89,
+        "normal": 0,
+        "total": 89
+      }
+    },
+    {
+      "key": "gadget",
+      "name": "ガジェット・家電",
+      "counts": {
+        "sponsored": 20,
+        "normal": 55,
+        "total": 75
+      }
+    },
+    {
+      "key": "beauty",
+      "name": "コスメ・美容・暮らし",
+      "counts": {
+        "sponsored": 0,
+        "normal": 0,
+        "total": 0
+      }
+    },
+    {
+      "key": "gaming",
+      "name": "ゲーム",
+      "counts": {
+        "sponsored": 82,
+        "normal": 37,
+        "total": 119
+      }
+    },
+    {
+      "key": "entertainment",
+      "name": "エンタメ・バラエティ",
+      "counts": {
+        "sponsored": 40,
+        "normal": 0,
+        "total": 40
+      }
+    },
+    {
+      "key": "vlog",
+      "name": "日常・Vlog",
+      "counts": {
+        "sponsored": 0,
+        "normal": 0,
+        "total": 0
+      }
+    },
+    {
+      "key": "vehicles",
+      "name": "車・乗り物",
+      "counts": {
+        "sponsored": 0,
+        "normal": 0,
+        "total": 0
+      }
+    },
+    {
+      "key": "business",
+      "name": "ビジネス・教養",
+      "counts": {
+        "sponsored": 1,
+        "normal": 32,
+        "total": 33
+      }
+    }
+  ]
+}
