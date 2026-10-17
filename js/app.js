@@ -584,7 +584,7 @@ function initEventListeners() {
   btnNext.addEventListener('click', handleNext);
 
   btnReplay.addEventListener('click', () => {
-    switchScreen('category');
+    window.location.reload();
   });
 }
 
