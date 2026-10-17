@@ -280,6 +280,15 @@ body.mode-compact-bars .footer-notice {
   transition: width 0.3s ease;
 }
 
+/* 動画の上の注意書き（赤字） */
+.video-play-warning {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--wrong-red);
+  line-height: 1.5;
+  text-align: center;
+}
+
 /* Video Monitor Stage (16:9 Aspect Ratio) */
 .media-stage {
   position: relative;
